@@ -76,13 +76,20 @@ AppConfig Config::parse_app_config(const Json::Value& root) {
     if (root.isMember("vertical_shift_px")) {
         cfg.vertical_shift_px = root["vertical_shift_px"].asInt();
     }
-    {
-        const std::string sink_type = root.get("sink", "glimage").asString();
-        if (sink_type == "custom") {
-            cfg.sink_stream = root.get("sink_stream", "").asString();
-        } else {
-            // default: "glimage"
-            cfg.sink_stream = "glimagesink sync=false force-aspect-ratio=false";
+    if (root.isMember("sinks") && root["sinks"].isArray()) {
+        for (const auto& item : root["sinks"]) {
+            if (!item.isString()) {
+                continue;
+            }
+
+            const std::string sink_type = item.asString();
+            cfg.sinks.push_back(sink_type);
+            if (sink_type == "glimage") {
+                cfg.sink_streams.push_back("glimagesink sync=false force-aspect-ratio=false");
+            } else if (sink_type == "glimages") {
+                cfg.sink_streams.push_back("glimagesink sync=false force-aspect-ratio=false");
+                cfg.sink_streams.push_back("glimagesink sync=false force-aspect-ratio=false");
+            }
         }
     }
     if (root.isMember("unixfd_socket_path")) {

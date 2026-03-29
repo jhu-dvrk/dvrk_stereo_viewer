@@ -472,6 +472,8 @@ std::string build_pipeline_string(
     const bool publish_left = has_ros_target(ros_targets, RosImageTarget::Left);
     const bool publish_right = has_ros_target(ros_targets, RosImageTarget::Right);
     const bool publish_stereo = has_ros_target(ros_targets, RosImageTarget::Stereo);
+    const bool has_glimage = std::find(stereo.sinks.begin(), stereo.sinks.end(), "glimage") != stereo.sinks.end();
+    const bool has_glimages = std::find(stereo.sinks.begin(), stereo.sinks.end(), "glimages") != stereo.sinks.end();
 
     int horizontal_shift_px = clamp_offset_to_valid(stereo.original_width, eye_w, stereo.horizontal_shift_px);
     int vertical_shift_px = clamp_offset_to_valid(stereo.original_height, eye_h, stereo.vertical_shift_px);
@@ -504,13 +506,26 @@ std::string build_pipeline_string(
         " right=" + std::to_string(left_crop.right) +
         " top=" + std::to_string(left_crop.top) +
         " bottom=" + std::to_string(left_crop.bottom);
-    if (publish_left) {
+    if (publish_left || has_glimages) {
         left_chain +=
             " ! tee name=__left_out__"
-            " __left_out__. ! queue max-size-buffers=1 leaky=downstream ! mix.sink_0"
-            " __left_out__. ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
-            " ! videoconvert ! video/x-raw,format=RGB"
-            " ! appsink name=__ros_left_sink__ sync=false async=false emit-signals=true drop=true max-buffers=1";
+            " __left_out__. ! queue max-size-buffers=1 leaky=downstream ! mix.sink_0";
+        if (publish_left) {
+            left_chain +=
+                " __left_out__. ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                " ! videoconvert ! video/x-raw,format=RGB"
+                " ! appsink name=__ros_left_sink__ sync=false async=false emit-signals=true drop=true max-buffers=1";
+        }
+        if (has_glimages) {
+            left_chain +=
+                " __left_out__. ! queue max-size-buffers=1 leaky=downstream"
+                " ! videoconvert";
+            if (include_overlay) {
+                left_chain += " ! cairooverlay name=left_overlay";
+            }
+            left_chain +=
+                " ! glimagesink name=__left_eye_sink__ sync=false force-aspect-ratio=false";
+        }
     } else {
         left_chain += " ! mix.sink_0";
     }
@@ -523,13 +538,26 @@ std::string build_pipeline_string(
         " right=" + std::to_string(right_crop.right) +
         " top=" + std::to_string(right_crop.top) +
         " bottom=" + std::to_string(right_crop.bottom);
-    if (publish_right) {
+    if (publish_right || has_glimages) {
         right_chain +=
             " ! tee name=__right_out__"
-            " __right_out__. ! queue max-size-buffers=1 leaky=downstream ! mix.sink_1"
-            " __right_out__. ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
-            " ! videoconvert ! video/x-raw,format=RGB"
-            " ! appsink name=__ros_right_sink__ sync=false async=false emit-signals=true drop=true max-buffers=1";
+            " __right_out__. ! queue max-size-buffers=1 leaky=downstream ! mix.sink_1";
+        if (publish_right) {
+            right_chain +=
+                " __right_out__. ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                " ! videoconvert ! video/x-raw,format=RGB"
+                " ! appsink name=__ros_right_sink__ sync=false async=false emit-signals=true drop=true max-buffers=1";
+        }
+        if (has_glimages) {
+            right_chain +=
+                " __right_out__. ! queue max-size-buffers=1 leaky=downstream"
+                " ! videoconvert";
+            if (include_overlay) {
+                right_chain += " ! cairooverlay name=right_overlay";
+            }
+            right_chain +=
+                " ! glimagesink name=__right_eye_sink__ sync=false force-aspect-ratio=false";
+        }
     } else {
         right_chain += " ! mix.sink_1";
     }
@@ -539,14 +567,16 @@ std::string build_pipeline_string(
         " ! video/x-raw,width=" + std::to_string(2 * eye_w) +
         ",height=" + std::to_string(eye_h);
 
-    const bool need_stereo_tee = stereo.has_unixfd_socket_path || publish_stereo;
+    const bool need_stereo_tee = has_glimage || stereo.has_unixfd_socket_path || publish_stereo;
     if (need_stereo_tee) {
         output_chain += " ! tee name=__stereo_out__ ";
-        output_chain += "__stereo_out__. ! queue max-size-buffers=1 leaky=downstream";
-        if (include_overlay) {
-            output_chain += " ! cairooverlay name=stereo_overlay";
+        if (has_glimage) {
+            output_chain += "__stereo_out__. ! queue max-size-buffers=1 leaky=downstream";
+            if (include_overlay) {
+                output_chain += " ! cairooverlay name=stereo_overlay";
+            }
+            output_chain += " ! videoconvert ! glimagesink sync=false force-aspect-ratio=false";
         }
-        output_chain += " ! videoconvert ! " + stereo.sink_stream;
 
         if (stereo.has_unixfd_socket_path) {
             const std::string socket_path = resolve_unixfd_socket_path(stereo);
@@ -565,7 +595,7 @@ std::string build_pipeline_string(
         if (include_overlay) {
             output_chain += " ! cairooverlay name=stereo_overlay";
         }
-        output_chain += " ! videoconvert ! " + stereo.sink_stream;
+        output_chain += " ! fakesink sync=false";
     }
 
     return left_chain + " " + right_chain + " " + output_chain;
@@ -613,6 +643,27 @@ int main(int argc, char* argv[]) {
     }
 
     const sv::AppConfig cfg = sv::Config::parse_app_config(root);
+
+    if (cfg.sinks.empty()) {
+        RCLCPP_WARN(node->get_logger(), "Config '%s' has an empty sinks list", cfg.name.c_str());
+    } else {
+        std::string configured_sinks;
+        for (const auto& sink : cfg.sinks) {
+            if (sink != "glimage" && sink != "glimages") {
+                RCLCPP_ERROR(node->get_logger(),
+                             "Unsupported sink '%s'. Allowed values are: glimage, glimages",
+                             sink.c_str());
+                rclcpp::shutdown();
+                return 1;
+            }
+
+            if (!configured_sinks.empty()) {
+                configured_sinks += ", ";
+            }
+            configured_sinks += sink;
+        }
+        RCLCPP_INFO(node->get_logger(), "Configured sinks: [%s]", configured_sinks.c_str());
+    }
 
     std::string pipeline_string;
     std::string selected_viewer_name = "dvrk_stereo_viewer";
@@ -672,7 +723,13 @@ int main(int argc, char* argv[]) {
         RCLCPP_INFO(node->get_logger(), "unixfd publish disabled (unixfd_socket_path is set to empty)");
     }
 
-    RCLCPP_INFO(node->get_logger(), "Sink stream: %s", app_cfg.sink_stream.c_str());
+    if (app_cfg.sink_streams.empty()) {
+        RCLCPP_WARN(node->get_logger(), "Resolved sink_streams list is empty");
+    } else {
+        for (std::size_t i = 0; i < app_cfg.sink_streams.size(); ++i) {
+            RCLCPP_INFO(node->get_logger(), "sink_streams[%zu]: %s", i, app_cfg.sink_streams[i].c_str());
+        }
+    }
 
     pipeline_string = build_pipeline_string(app_cfg, selected_ros_targets, overlay_available);
 
@@ -866,13 +923,27 @@ int main(int argc, char* argv[]) {
     gst_object_unref(bus);
 
     if (overlay_available) {
-        GstElement* overlay = gst_bin_get_by_name(GST_BIN(pipeline), "stereo_overlay");
-        if (overlay != nullptr) {
+        bool found_overlay = false;
+        const std::vector<std::string> overlay_names = {
+            "stereo_overlay",
+            "left_overlay",
+            "right_overlay"
+        };
+
+        for (const auto& overlay_name : overlay_names) {
+            GstElement* overlay = gst_bin_get_by_name(GST_BIN(pipeline), overlay_name.c_str());
+            if (overlay == nullptr) {
+                continue;
+            }
+
+            found_overlay = true;
             g_signal_connect(overlay, "caps-changed", G_CALLBACK(sv::on_overlay_caps_changed), overlay_state.get());
             g_signal_connect(overlay, "draw", G_CALLBACK(sv::on_overlay_draw), overlay_state.get());
             gst_object_unref(overlay);
-        } else {
-            RCLCPP_WARN(node->get_logger(), "Unable to find 'stereo_overlay' element in pipeline; dVRK status overlay is disabled");
+        }
+
+        if (!found_overlay) {
+            RCLCPP_WARN(node->get_logger(), "Unable to find overlay element in pipeline; dVRK status overlay is disabled");
         }
     }
 

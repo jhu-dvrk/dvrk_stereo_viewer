@@ -39,28 +39,28 @@ ament_target_dependencies(dvrk_stereo_viewer_lib
   ament_index_cpp
 )
 
-add_executable(dvrk_stereo_viewer
+add_executable(viewer
   src/dvrk_stereo_viewer/main.cpp
   src/dvrk_stereo_viewer/overlay.cpp
 )
-ament_target_dependencies(dvrk_stereo_viewer
+ament_target_dependencies(viewer
   rclcpp
   sensor_msgs
   std_msgs
   image_transport
 )
-target_include_directories(dvrk_stereo_viewer PRIVATE
+target_include_directories(viewer PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/common
   ${GST_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIRS}
   ${CAIRO_INCLUDE_DIRS}
 )
-target_compile_options(dvrk_stereo_viewer PRIVATE
+target_compile_options(viewer PRIVATE
   ${GST_CFLAGS_OTHER}
   ${JSONCPP_CFLAGS_OTHER}
   ${CAIRO_CFLAGS_OTHER}
 )
-target_link_libraries(dvrk_stereo_viewer
+target_link_libraries(viewer
   ${GST_LIBRARIES}
   ${JSONCPP_LIBRARIES}
   ${CAIRO_LIBRARIES}
@@ -68,12 +68,12 @@ target_link_libraries(dvrk_stereo_viewer
 )
 
 install(TARGETS
-  dvrk_stereo_viewer
+  viewer
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
 install(PROGRAMS
-  scripts/stereo_configurator
+  scripts/configurator
   DESTINATION lib/${PROJECT_NAME}
 )
 

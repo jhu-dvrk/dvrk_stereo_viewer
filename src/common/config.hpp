@@ -26,7 +26,8 @@ struct AppConfig {
     int crop_height = 0;
     int horizontal_shift_px = 0;
     int vertical_shift_px = 0;
-    std::string sink_stream = "glimagesink sync=false force-aspect-ratio=false";
+    std::vector<std::string> sinks;
+    std::vector<std::string> sink_streams;
     bool has_unixfd_socket_path = true;
     std::string unixfd_socket_path = "";
 };
