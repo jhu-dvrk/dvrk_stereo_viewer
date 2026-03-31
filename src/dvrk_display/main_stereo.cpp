@@ -655,7 +655,7 @@ build_pipeline_string(const sv::AppConfig &stereo,
                       " ! " +
                       unixfd_upload_chain +
                       " ! unixfdsink socket-path=" + socket_path +
-                      " sync=false async=false";
+                      " sync=true async=false";
     }
 
     if (publish_stereo) {
