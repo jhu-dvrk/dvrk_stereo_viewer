@@ -107,10 +107,10 @@ CropValues compute_eye_crop(const int working_w, const int working_h,
       compute_axis_starts(crop_y_total, vertical_offset_px);
 
   CropValues crop;
-  crop.left = sign < 0 ? left_start : right_start;
-  crop.right = crop_x_total - crop.left;
-  crop.top = sign < 0 ? top_start : bottom_start;
-  crop.bottom = crop_y_total - crop.top;
+  crop.left = (sign < 0 ? left_start : right_start) & ~1;
+  crop.right = (crop_x_total - crop.left) & ~1;
+  crop.top = (sign < 0 ? top_start : bottom_start) & ~1;
+  crop.bottom = (crop_y_total - crop.top) & ~1;
   return crop;
 }
 
@@ -795,6 +795,13 @@ int main(int argc, char *argv[]) {
                  cfg.name.c_str());
     rclcpp::shutdown();
     return 1;
+  }
+
+  if (app_cfg.crop_width % 2 != 0 || app_cfg.crop_height % 2 != 0) {
+    RCLCPP_WARN(node->get_logger(),
+                "Config '%s' has odd crop dimensions (%dx%d). "
+                "Cropping will be rounded to even values to prevent display artifacts.",
+                cfg.name.c_str(), app_cfg.crop_width, app_cfg.crop_height);
   }
 
   const std::string unixfd_upload_chain = get_unixfd_upload_chain();
