@@ -1,20 +1,24 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "sv::stereo_viewer_config@1.0.0",
-  "title": "dvrk_stereo_viewer configuration",
-  "description": "Configuration file for the dvrk_stereo_viewer node. Describes video sources, image geometry corrections, ROS publishing targets, and GStreamer output sinks.",
+  "$id": "dd::display_config@1.0.0",
+  "title": "dvrk_display configuration",
+  "description": "Configuration file for the dvrk_display node. Describes video sources, image geometry corrections, ROS publishing targets, and GStreamer output sinks.",
   "type": "object",
-  "required": ["type", "left_stream", "right_stream"],
+  "required": [
+    "type",
+    "left_stream",
+    "right_stream"
+  ],
   "additionalProperties": false,
   "properties": {
     "type": {
       "type": "string",
-      "const": "sv::stereo_viewer_config@1.0.0",
-      "description": "Schema type identifier. Must be exactly \"sv::stereo_viewer_config@1.0.0\". The application validates this field on startup and refuses to load a file with a mismatched type."
+      "const": "dd::display_config@1.0.0",
+      "description": "Schema type identifier. Must be exactly \"dd::display_config@1.0.0\". The application validates this field on startup and refuses to load a file with a mismatched type."
     },
     "name": {
       "type": "string",
-      "default": "dvrk_stereo_viewer",
+      "default": "dvrk_display",
       "description": "Name of the viewer instance. Used as the ROS node name and in log output."
     },
     "dvrk_console_namespace": {
@@ -28,7 +32,11 @@
       "description": "List of ROS image streams to publish in addition to the display output. Each entry must be one of \"left\", \"right\", or \"stereo\". The combined stereo frame is available as \"stereo\".",
       "items": {
         "type": "string",
-        "enum": ["left", "right", "stereo"]
+        "enum": [
+          "left",
+          "right",
+          "stereo"
+        ]
       },
       "uniqueItems": true
     },
@@ -79,11 +87,16 @@
     },
     "sinks": {
       "type": "array",
-      "default": ["glimage"],
+      "default": [
+        "glimage"
+      ],
       "description": "Output sink selection list. Supported values: \"glimage\" (single stereo output window) and \"glimages\" (two output windows, one per eye).",
       "items": {
         "type": "string",
-        "enum": ["glimage", "glimages"]
+        "enum": [
+          "glimage",
+          "glimages"
+        ]
       },
       "uniqueItems": false
     },

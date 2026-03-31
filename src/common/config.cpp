@@ -58,9 +58,9 @@ AppConfig Config::parse_app_config(const Json::Value& root) {
         cfg.right_color = parse_color(root["right_color"]);
     }
 
-    cfg.name = root.get("name", "dvrk_stereo_viewer").asString();
+    cfg.name = root.get("name", "dvrk_display").asString();
     if (cfg.name.empty()) {
-        cfg.name = "dvrk_stereo_viewer";
+        cfg.name = "dvrk_display";
     }
     cfg.dvrk_console_namespace = root.get("dvrk_console_namespace", "console").asString();
     if (cfg.dvrk_console_namespace.empty()) {

@@ -1,5 +1,5 @@
-#ifndef STEREO_VIEWER_COMMON_CONFIG_HPP
-#define STEREO_VIEWER_COMMON_CONFIG_HPP
+#ifndef DVRK_DISPLAY_COMMON_CONFIG_HPP
+#define DVRK_DISPLAY_COMMON_CONFIG_HPP
 
 #include <json/json.h>
 
@@ -20,7 +20,7 @@ struct ColorAdjustment {
 };
 
 struct AppConfig {
-    std::string name = "dvrk_stereo_viewer";
+    std::string name = "dvrk_display";
     std::string dvrk_console_namespace = "console";
     std::vector<std::string> ros_image_publishers;
     double overlay_alpha = 0.7;

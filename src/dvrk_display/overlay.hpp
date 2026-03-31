@@ -1,5 +1,5 @@
-#ifndef DVRK_STEREO_VIEWER_OVERLAY_HPP
-#define DVRK_STEREO_VIEWER_OVERLAY_HPP
+#ifndef DVRK_DISPLAY_OVERLAY_HPP
+#define DVRK_DISPLAY_OVERLAY_HPP
 
 #include <gst/gst.h>
 #include <cairo/cairo.h>
